@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Execute PowerShell Script</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f4f7f8;
+    color: #333;
+    margin: 2em;
+  }
+  h1 {
+    color: #2c3e50;
+  }
+  .step {
+    background: #fff;
+    border-left: 5px solid #3498db;
+    padding: 1em 1.5em;
+    margin-bottom: 1em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  code, pre {
+    background: #ecf0f1;
+    padding: 0.5em;
+    border-radius: 3px;
+    font-family: Consolas, monospace;
+    white-space: pre-wrap;
+  }
+  button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 0.7em 1.2em;
+    font-size: 1em;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #2980b9;
+  }
+</style>
+</head>
+<body>
+  <h1>How to Execute the PowerShell Script</h1>
+
+  <div class="step">
+    <strong>Step 1:</strong> Open PowerShell.<br />
+    Press <code>Win + R</code>, type <code>powershell</code>, and press Enter.
+  </div>
+
+  <div class="step">
+    <strong>Step 2:</strong> If script execution is restricted, temporarily bypass the policy.<br />
+    Run this command:<br />
+    <code>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass</code>
+  </div>
+
+  <div class="step">
+    <strong>Step 3:</strong> Save the script below as <code>check_services.ps1</code>.
+  </div>
+
+  <pre id="scriptContent">
+# Check for unquoted service paths
+Write-Output "Checking for unquoted service paths..."
+Get-WmiObject win32_service | ForEach-Object {
+    $path = $_.PathName
+    if ($path -and $path -notmatch '^".*"$' -and $path -match '\s') {
+        Write-Output "Unquoted service path found: $($_.Name) -> $path"
+    }
+}
+
+# Check for services with weak permissions
+Write-Output "`nChecking for services with weak permissions..."
+$services = Get-WmiObject win32_service
+foreach ($service in $services) {
+    $sd = sc.exe sdshow $service.Name
+    if ($sd -match 'D:(.*)') {
+        $dacl = $matches[1]
+        # Look for permissions granted to Everyone or Users groups
+        if ($dacl -match 'S-1-1-0' -or $dacl -match 'S-1-5-32-545') {
+            Write-Output "Service with weak permissions: $($service.Name)"
+        }
+    }
+}
+  </pre>
+
+  <div class="step">
+    <strong>Step 4:</strong> Navigate to the folder where you saved the script.<br />
+    Use the <code>cd</code> command, for example:<br />
+    <code>cd C:\Path\To\Script</code>
+  </div>
+
+  <div class="step">
+    <strong>Step 5:</strong> Run the script by typing:<br />
+    <code>.\check_services.ps1</code>
+  </div>
+
+  <div class="step">
+    The script will output any unquoted service paths and services with weak permissions it finds.
+  </div>
+
+  <button onclick="downloadScript()">Download Script</button>
+
+  <script>
+    function downloadScript() {
+      const scriptText = document.getElementById('scriptContent').innerText;
+      const blob = new Blob([scriptText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'check_services.ps1';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
